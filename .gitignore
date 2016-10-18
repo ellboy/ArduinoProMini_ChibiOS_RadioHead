@@ -1,0 +1,11 @@
+/.dep/
+*.o
+*.bin
+*.eep
+*.elf
+*.hex
+*.lss
+*.map
+*.sym
+*.size
+
