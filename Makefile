@@ -65,7 +65,7 @@ include $(CHIBIOS)/os/hal/ports/AVR/platform.mk
 include $(CHIBIOS)/os/hal/osal/nil/osal.mk
 include $(CHIBIOS)/os/nil/nil.mk
 include $(CHIBIOS)/os/nil/ports/AVR/compilers/GCC/mk/port.mk
-# include $(CHIBIOS)/test/nil/test.mk
+include $(CHIBIOS)/test/nil/test.mk
 
 # List C source files here. (C dependencies are automatically generated.)
 SRC = $(KERNSRC) \
@@ -75,13 +75,13 @@ SRC = $(KERNSRC) \
       $(PLATFORMSRC) \
       $(BOARDSRC) \
       $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
-      mavlink_interface.c \
       main.c
 
 # List C++ source files here. (C dependencies are automatically generated.)
 CPPSRC = $(RADIOHEAD)/RHGenericDriver.cpp \
          $(RADIOHEAD)/RHDatagram.cpp \
          $(RADIOHEAD)/RHReliableDatagram.cpp \
+         $(RADIOHEAD)/chibios/RH_NRF24_wrapper.cpp \
          $(RADIOHEAD)/chibios/RHReliableDatagram_wrapper.cpp \
          $(RADIOHEAD)/chibios/ChibiosInterface.cpp \
          $(RADIOHEAD)/RH_NRF24.cpp \
@@ -89,7 +89,8 @@ CPPSRC = $(RADIOHEAD)/RHGenericDriver.cpp \
          $(RADIOHEAD)/RHNRFSPIDriver.cpp \
          $(RADIOHEAD)/RHGenericDriver.cpp \
          $(RADIOHEAD)/RHGenericSPI.cpp
-         
+   
+   #      
 #  $(RADIOHEAD)/chibios/RH_NRF24_wrapper.cpp \
          
 #         ../RadioHead-1.62/RadioHead/RHNRFSPIDriver.cpp 
@@ -111,7 +112,7 @@ ASRC =
 # Optimization level, can be [0, 1, 2, 3, s].
 #     0 = turn off optimization. s = optimize for size.
 #     (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
-OPT = s
+OPT = 2
 
 # Debugging format.
 #     Native formats for AVR-GCC's -g are dwarf-2 [default] or stabs.
@@ -123,7 +124,7 @@ DEBUG = dwarf-2
 #     Each directory must be seperated by a space.
 #     Use forward slashes for directory separators.
 #     For a directory that has spaces, enclose it in quotes.
-EXTRAINCDIRS = $(PORTINC) $(KERNINC)\
+EXTRAINCDIRS = $(PORTINC) $(KERNINC) $(TESTINC) \
                $(HALINC) $(OSALINC) $(PLATFORMINC) \
                $(BOARDINC) $(CHIBIOS)/os/various \
                $(CHIBIOS)/os/hal/lib/streams \
@@ -281,8 +282,8 @@ AVRDUDE_PROGRAMMER = arduino
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
 #AVRDUDE_PORT = /dev/ttyUSB0  # programmer connected to serial device
-#AVRDUDE_PORT = COM5
-AVRDUDE_PORT = /dev/ttyUSB0
+AVRDUDE_PORT = COM5
+#AVRDUDE_PORT = /dev/ttyUSB0
 
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep

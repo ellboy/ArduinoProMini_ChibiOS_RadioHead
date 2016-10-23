@@ -20,11 +20,7 @@
 #include "debug.h"
 
 
-#define USE_MAVLINK
-
-#define RELIABLE
-//#define NRF24_CLIENT
-#define NRF24_SERVER
+#include "project_settings.h"
 
 #ifdef RELIABLE
 #include "RHReliableDatagram_wrapper.h"
@@ -32,10 +28,6 @@
 #define SERVER_ADDRESS 2
 #else
 #include "RH_NRF24_wrapper.h"
-#endif
-
-#ifdef USE_MAVLINK
-#include "mavlink_interface.h"
 #endif
 
 /*
@@ -56,6 +48,7 @@ THD_FUNCTION(Thread1, arg) {
 
 
 void nrf24_init(void) {
+
 #ifdef RELIABLE
 	RH_NRF24_setChipEnablePin(14);
 	RH_NRF24_setSlaveSelectPin(10);
@@ -87,35 +80,31 @@ void nrf24_init(void) {
 		}
 	}
 #endif
+
 }
+
+uint8_t server_rx_buf[RH_NRF24_MAX_MESSAGE_LEN];
 
 void nrf24_server(void) {
 	print_dbg("Debug: %s: %s\r\n", __func__, "RX wait loop");
-
-
 
 #ifdef RELIABLE
 	RHReliableDatagram_setThisAddress(SERVER_ADDRESS);
 	RHReliableDatagram_init();
 
-#ifndef USE_MAVLINK
 	uint8_t data[] = "And hello back to you";
 	// Dont put this on the stack:
-	uint8_t buf[RH_NRF24_maxMessageLength()];
-#endif
 
 	while (1) {
-#ifdef USE_MAVLINK
-		mavlink_server();
-#else
+
 		if (RHReliableDatagram_available()) {
 			// Wait for a message addressed to us from the client
-			uint8_t len = sizeof(buf);
+			uint8_t len = sizeof(server_rx_buf);
 			uint8_t from;
-			if (RHReliableDatagram_recvfromAck(buf, &len, &from, NULL, NULL,
+			if (RHReliableDatagram_recvfromAck(server_rx_buf, &len, &from, NULL, NULL,
 					NULL)) {
 				print_dbg("Debug: %s : got request from : %d : %s\r\n",
-						__func__, from, (char* )buf);
+						__func__, from, (char* )server_rx_buf);
 
 				// Send a reply back to the originator client
 				if (!RHReliableDatagram_sendtoWait(data, sizeof(data), from))
@@ -123,7 +112,6 @@ void nrf24_server(void) {
 							"sendtoWait failed");
 			}
 		}
-#endif
 	}
 
 #else
@@ -133,11 +121,11 @@ void nrf24_server(void) {
 
 		if (RH_NRF24_available()) {
 			// Should be a message for us now
-			uint8_t buf[RH_NRF24_maxMessageLength()];
-			uint8_t len = sizeof(buf);
-			if (RH_NRF24_recv(buf, &len)) {
+
+			uint8_t len = sizeof(server_rx_buf);
+			if (RH_NRF24_recv(server_rx_buf, &len)) {
 				//      NRF24::printBuffer("request: ", buf, len);
-				print_dbg("Debug: %s: got request: %s\r\n", __func__, (char* )buf);
+				print_dbg("Debug: %s: got request: %s\r\n", __func__, (char* )server_rx_buf);
 
 				// Send a reply
 				uint8_t data[] = "And hello back to you";
@@ -154,35 +142,31 @@ void nrf24_server(void) {
 #endif
 }
 
-
+uint8_t client_rx_buf[RH_NRF24_MAX_MESSAGE_LEN];
 
 void nrf24_client(void) {
-#ifdef RELIABLE
+	print_dbg("Debug: %s\r\n", __func__);
 
-#ifndef USE_MAVLINK
+#ifdef RELIABLE
 	uint8_t data[] = "Hello World!";
 	// Dont put this on the stack:
-	uint8_t buf[RH_NRF24_maxMessageLength()];
-#endif
+
 
 	RHReliableDatagram_setThisAddress(CLIENT_ADDRESS);
 	RHReliableDatagram_init();
 
-	print_dbg("Debug: %s: %s\r\n", __func__,
-			"Sending to rf24_reliable_datagram_server");
+	print_dbg("Debug: %s: %s\r\n", __func__, "Sending to rf24_reliable_datagram_server");
 
 	while (1) {
-#ifdef USE_MAVLINK
-		mavlink_client(SERVER_ADDRESS);
-#else
+
 		// Send a message to manager_server
 		if (RHReliableDatagram_sendtoWait(data, sizeof(data), SERVER_ADDRESS)) {
 			// Now wait for a reply from the server
-			uint8_t len = sizeof(buf);
+			uint8_t len = sizeof(client_rx_buf);
 			uint8_t from;
-			if (RHReliableDatagram_recvfromAckTimeout(buf, &len, 2000, &from, NULL, NULL, NULL)) {
+			if (RHReliableDatagram_recvfromAckTimeout(client_rx_buf, &len, 2000, &from, NULL, NULL, NULL)) {
 
-				print_dbg("Debug: %s : got reply from : %d: %s\r\n", __func__, from, (char*) buf);
+				print_dbg("Debug: %s : got reply from : %d: %s\r\n", __func__, from, (char*) client_rx_buf);
 
 			} else {
 				print_dbg("Debug: %s: %s\r\n", __func__,
@@ -191,7 +175,6 @@ void nrf24_client(void) {
 		} else {
 			print_dbg("Debug: %s: %s\r\n", __func__, "sendtoWait failed");
 		}
-#endif
 
 		chThdSleepMilliseconds(500);
 	}
@@ -211,14 +194,14 @@ void nrf24_client(void) {
 
 		RH_NRF24_waitPacketSent();
 		// Now wait for a reply
-		uint8_t buf[RH_NRF24_maxMessageLength()];
-		uint8_t len = sizeof(buf);
+
+		uint8_t len = sizeof(client_rx_buf);
 
 		//NRF24_waitAvailableTimeout(500)
 		if (RH_NRF24_waitAvailable()) {
 			// Should be a reply message for us now
-			if (RH_NRF24_recv(buf, &len)) {
-				print_dbg("Debug: %s: got reply: %s\r\n", __func__, buf);
+			if (RH_NRF24_recv(client_rx_buf, &len)) {
+				print_dbg("Debug: %s: got reply: %s\r\n", __func__, client_rx_buf);
 			} else {
 				print_dbg("Debug: %s: %s\r\n", __func__, "recv failed");
 			}

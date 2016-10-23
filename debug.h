@@ -10,7 +10,7 @@
 
 #include "chprintf.h"
 
-#define DEBUG FALSE
+#define DEBUG TRUE
 
 #define OUTPUT_DBG  (BaseSequentialStream *)&SD1
 #define OUTPUT_ERR  (BaseSequentialStream *)&SD1
